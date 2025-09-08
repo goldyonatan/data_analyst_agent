@@ -5,6 +5,26 @@ import streamlit as st
 from core.graph_factory import build_graph
 from langgraph.checkpoint.sqlite import SqliteSaver  # app owns the saver
 
+from dotenv import load_dotenv  
+load_dotenv()                   
+
+# --- Provider/env defaults (ADD) ---
+PROVIDER = os.getenv("PROVIDER", "openai").lower()
+
+def make_llm():
+    """
+    Returns an LLM only for PROVIDER=openai so the app is runnable with a single key.
+    If PROVIDER=nebius (your existing setup), return None and let build_graph handle it.
+    """
+    if PROVIDER == "openai":
+        from langchain_openai import ChatOpenAI
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            raise RuntimeError("OPENAI_API_KEY is required when PROVIDER=openai")
+        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        return ChatOpenAI(model=model, temperature=0.2, timeout=60)
+    # For Nebius or anything else, fall back to the graph_factory internals.
+    return None
 
 st.set_page_config(page_title="Bitext Data Analyst Agent", page_icon="🧠", layout="wide")
 st.title("🧠 Bitext Data Analyst Agent")
@@ -39,10 +59,23 @@ if "checkpointer" not in st.session_state:
 
 # --- Build graph once with the provided saver ---
 if "graph" not in st.session_state:
-    st.session_state.graph = build_graph(checkpointer=st.session_state.checkpointer)
+    llm = make_llm()  # ADD
+    try:
+        # Preferred: pass the LLM if build_graph supports it
+        st.session_state.graph = build_graph(
+            checkpointer=st.session_state.checkpointer,
+            llm=llm
+        )
+    except TypeError:
+        # Fallback: older build_graph signature (no llm param) — rely on env inside the factory
+        st.session_state.graph = build_graph(
+            checkpointer=st.session_state.checkpointer
+        )
 graph = st.session_state.graph
 
-st.sidebar.caption("Persistence: LangGraph SqliteSaver @ ./checkpoints/bitext.sqlite")
+st.sidebar.caption(
+    f"Provider: {PROVIDER} • Persistence: ./checkpoints/bitext.sqlite"
+)
 
 # --- Simple chat history for UI (LangGraph state lives in DB) ---
 if "history" not in st.session_state:
