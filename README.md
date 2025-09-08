@@ -44,8 +44,6 @@ See `requirements.txt`. At minimum, you’ll need:
 - `datasets`
 - `pandas`
 
-> Pin versions as you see fit (e.g., `streamlit>=1.34`, `langgraph>=0.2`, `langchain>=0.2`, `langchain-openai>=0.1`, `python-dotenv>=1.0`, `datasets>=2.19`, `pandas>=2.2`).
-
 ---
 
 ## Installation
